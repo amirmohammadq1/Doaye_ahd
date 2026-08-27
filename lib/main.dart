@@ -353,7 +353,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Icon(Icons.star, size: 12, color: accent),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CustomPaint(painter: _ZulfiqarPainter(color: accent)),
+            ),
           ),
           Expanded(
             child: Container(height: 1, color: accent.withOpacity(0.5)),
@@ -705,4 +709,70 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+/// -------------------- آیکون شمشیر ذوالفقار (نماد دو لبه با نوک دوشاخه) --------------------
+class _ZulfiqarPainter extends CustomPainter {
+  final Color color;
+  const _ZulfiqarPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.09
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // چرخش ۴۵ درجه به سمت راست (نوک شمشیر رو به بالا-راست)
+    canvas.save();
+    canvas.translate(w / 2, h / 2);
+    canvas.rotate(0.785398); // 45deg
+    canvas.translate(-w / 2, -h / 2);
+
+    final centerX = w / 2;
+    final bladeTop = h * 0.08;
+    final bladeSplitStart = h * 0.34;
+    final guardY = h * 0.62;
+    final hiltBottom = h * 0.92;
+    final forkSpread = w * 0.14;
+
+    // تیغه‌ی اصلی (از دسته تا شروع دوشاخه)
+    final mainBlade = Path()
+      ..moveTo(centerX, guardY)
+      ..lineTo(centerX, bladeSplitStart);
+    canvas.drawPath(mainBlade, paint);
+
+    // دو نوک دوشاخه‌ی مشخصه‌ی ذوالفقار
+    final forkLeft = Path()
+      ..moveTo(centerX, bladeSplitStart)
+      ..lineTo(centerX - forkSpread, bladeTop);
+    final forkRight = Path()
+      ..moveTo(centerX, bladeSplitStart)
+      ..lineTo(centerX + forkSpread, bladeTop);
+    canvas.drawPath(forkLeft, paint);
+    canvas.drawPath(forkRight, paint);
+
+    // دسته‌ی متقاطع (قبضه)
+    canvas.drawLine(
+      Offset(centerX - w * 0.2, guardY),
+      Offset(centerX + w * 0.2, guardY),
+      paint,
+    );
+
+    // دسته‌ی شمشیر
+    canvas.drawLine(
+      Offset(centerX, guardY),
+      Offset(centerX, hiltBottom),
+      paint,
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZulfiqarPainter oldDelegate) => oldDelegate.color != color;
 }
