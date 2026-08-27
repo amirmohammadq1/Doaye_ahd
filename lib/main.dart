@@ -268,7 +268,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemCount: kDuaSections.length,
                 itemBuilder: (context, index) {
                   final section = kDuaSections[index];
-                  return Container(
+                  final isClosingSupplication = index == kDuaSections.length - 1;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (isClosingSupplication)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Text(
+                            'دعای خیر برای عموم مسلمانان و مؤمنان (جزو متن اصلی دعای عهد نیست)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: farsiColor.withOpacity(0.55),
+                              fontSize: 11.5 * _fontScale,
+                            ),
+                          ),
+                        ),
+                      Container(
                     margin: const EdgeInsets.only(bottom: 22),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -314,6 +330,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -351,21 +369,189 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: accent.withOpacity(0.35))),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Icon(Icons.menu_book_rounded, color: accent, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            'دعای عهد',
-            style: TextStyle(
-              color: accent,
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.menu_book_rounded, color: accent, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'دعای عهد',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            child: Tooltip(
+              message: 'درباره‌ی دعای عهد',
+              child: GestureDetector(
+                onTap: _showAboutSheet,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: accent.withOpacity(0.6), width: 1.3),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '؟',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showAboutSheet() {
+    _lightVibrate();
+    final isNight = _nightMode;
+    final bg = isNight ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isNight ? Colors.white : const Color(0xFF2A2110);
+    final subColor = isNight ? Colors.white70 : const Color(0xFF6B5A2E);
+    const gold = Color(0xFFC9A24B);
+
+    Widget sectionTitle(String t) => Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.brightness_1, size: 6, color: gold),
+              const SizedBox(width: 6),
+              Text(
+                t,
+                style: TextStyle(color: gold, fontWeight: FontWeight.bold, fontSize: 14.5),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.brightness_1, size: 6, color: gold),
+            ],
+          ),
+        );
+
+    Widget paragraph(String t, {bool italic = false}) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Text(
+            t,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 13.5,
+              height: 1.9,
+              fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+        );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return SafeArea(
+              top: false,
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: gold.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.menu_book_rounded, color: gold, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'درباره‌ی دعای عهد',
+                        style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+                  sectionTitle('معرفی دعای عهد'),
+                  paragraph(
+                    'دعای عهد یکی از دعاهای مشهور شیعه است که در آن از خداوند درخواست می‌شود انسان را از یاران و یاوران حضرت ولی‌عصر (عج) قرار دهد و بر عهد و پیمان با امام زمان (عج) استوار بماند.',
+                  ),
+                  sectionTitle('فضیلت دعای عهد'),
+                  paragraph(
+                    'دعای عهد از دعاهایی است که خواندن آن در منابع روایی شیعه مورد توجه قرار گرفته است. از امام صادق (ع) درباره‌ی خواندن این دعا در صبحگاه روایت شده، و در آن بر پیوند و وفاداری مؤمن نسبت به حضرت صاحب‌الزمان (عج) تأکید شده است.',
+                  ),
+                  sectionTitle('مفهوم کلی دعا'),
+                  paragraph(
+                    'مضمون دعای عهد شامل سلام و درود بر پیامبر اکرم (ص) و اهل‌بیت (ع)، اظهار وفاداری و عهد با امام زمان (عج)، درخواست یاری و قرار گرفتن در شمار یاران ایشان، و درخواست تعجیل در فرج است.',
+                  ),
+                  sectionTitle('یک حدیث کوتاه'),
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: gold.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: gold.withOpacity(0.3)),
+                    ),
+                    child: paragraph(
+                      'امام صادق (ع): هر کس چهل صبح این دعا را بخواند، از یاوران قائم (عج) خواهد بود؛ و اگر پیش از ظهور آن حضرت بمیرد، خداوند او را از قبر بیرون می‌آورد تا در خدمت ایشان باشد.',
+                      italic: true,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildOrnamentDivider(gold),
+                  const SizedBox(height: 6),
+                  Text(
+                    'اَللّهُمَّ اجْعَلْنی مِنْ اَنْصارِهِ وَاَعْوانِهِ وَالذّابّینَ عَنْهُ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'QuranFont',
+                      color: textColor,
+                      fontSize: 17,
+                      height: 1.8,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'التماس دعا 🙏',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subColor, fontSize: 13.5, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
