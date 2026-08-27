@@ -354,8 +354,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: SizedBox(
-              width: 20,
-              height: 20,
+              width: 30,
+              height: 18,
               child: CustomPaint(painter: _ZulfiqarPainter(color: accent)),
             ),
           ),
@@ -711,7 +711,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// -------------------- آیکون شمشیر ذوالفقار (نماد دو لبه با نوک دوشاخه) --------------------
+/// -------------------- آیکون شمشیر ذوالفقار (به‌صورت افقی و صاف، بدون چرخش) --------------------
 class _ZulfiqarPainter extends CustomPainter {
   final Color color;
   const _ZulfiqarPainter({required this.color});
@@ -723,54 +723,57 @@ class _ZulfiqarPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.09
+      ..strokeWidth = h * 0.16
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    // چرخش ۴۵ درجه به سمت راست (نوک شمشیر رو به بالا-راست)
-    canvas.save();
-    canvas.translate(w / 2, h / 2);
-    canvas.rotate(0.785398); // 45deg
-    canvas.translate(-w / 2, -h / 2);
+    final cx = w / 2;
+    final junctionY = h * 0.58;
+    final tipY = h * 0.06;
 
-    final centerX = w / 2;
-    final bladeTop = h * 0.08;
-    final bladeSplitStart = h * 0.34;
-    final guardY = h * 0.62;
-    final hiltBottom = h * 0.92;
-    final forkSpread = w * 0.14;
-
-    // تیغه‌ی اصلی (از دسته تا شروع دوشاخه)
-    final mainBlade = Path()
-      ..moveTo(centerX, guardY)
-      ..lineTo(centerX, bladeSplitStart);
-    canvas.drawPath(mainBlade, paint);
-
-    // دو نوک دوشاخه‌ی مشخصه‌ی ذوالفقار
-    final forkLeft = Path()
-      ..moveTo(centerX, bladeSplitStart)
-      ..lineTo(centerX - forkSpread, bladeTop);
-    final forkRight = Path()
-      ..moveTo(centerX, bladeSplitStart)
-      ..lineTo(centerX + forkSpread, bladeTop);
-    canvas.drawPath(forkLeft, paint);
-    canvas.drawPath(forkRight, paint);
-
-    // دسته‌ی متقاطع (قبضه)
+    // تیغه‌ی پایینی و دسته (بخش عمودی وسط)
     canvas.drawLine(
-      Offset(centerX - w * 0.2, guardY),
-      Offset(centerX + w * 0.2, guardY),
+      Offset(cx, h * 0.98),
+      Offset(cx, junctionY),
       paint,
     );
 
-    // دسته‌ی شمشیر
+    // قبضه (گارد افقی کوچک)
     canvas.drawLine(
-      Offset(centerX, guardY),
-      Offset(centerX, hiltBottom),
+      Offset(cx - w * 0.1, h * 0.82),
+      Offset(cx + w * 0.1, h * 0.82),
       paint,
     );
 
-    canvas.restore();
+    // شاخه‌ی چپ ذوالفقار (منحنی رو به بیرون با نوک قلاب‌مانند)
+    final leftBlade = Path()
+      ..moveTo(cx, junctionY)
+      ..cubicTo(
+        cx - w * 0.16, junctionY - h * 0.18,
+        cx - w * 0.48, junctionY - h * 0.12,
+        cx - w * 0.47, tipY + h * 0.18,
+      )
+      ..cubicTo(
+        cx - w * 0.46, tipY + h * 0.05,
+        cx - w * 0.4, tipY,
+        cx - w * 0.34, tipY + h * 0.03,
+      );
+    canvas.drawPath(leftBlade, paint);
+
+    // شاخه‌ی راست ذوالفقار (قرینه‌ی شاخه‌ی چپ)
+    final rightBlade = Path()
+      ..moveTo(cx, junctionY)
+      ..cubicTo(
+        cx + w * 0.16, junctionY - h * 0.18,
+        cx + w * 0.48, junctionY - h * 0.12,
+        cx + w * 0.47, tipY + h * 0.18,
+      )
+      ..cubicTo(
+        cx + w * 0.46, tipY + h * 0.05,
+        cx + w * 0.4, tipY,
+        cx + w * 0.34, tipY + h * 0.03,
+      );
+    canvas.drawPath(rightBlade, paint);
   }
 
   @override
