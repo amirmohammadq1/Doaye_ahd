@@ -353,10 +353,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: SizedBox(
-              width: 34,
-              height: 20,
-              child: CustomPaint(painter: _ZulfiqarPainter(color: accent)),
+            child: Text(
+              '\u262B',
+              style: TextStyle(fontSize: 20, color: accent),
             ),
           ),
           Expanded(
@@ -711,66 +710,3 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// -------------------- آیکون شمشیر ذوالفقار --------------------
-/// افقی و صاف: دسته و قبضه سمت راست، تیغه‌ی دوشاخه و نوک شمشیر سمت چپ.
-class _ZulfiqarPainter extends CustomPainter {
-  final Color color;
-  const _ZulfiqarPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = h * 0.16
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final midY = h * 0.5;
-    final junctionX = w * 0.38;
-    final hiltEnd = w * 0.94;
-    final guardX = w * 0.80;
-
-    // تیغه‌ی اصلی + دسته (کمی منحنی، مثل شمشیرهای خمیده)
-    final blade = Path()
-      ..moveTo(junctionX, midY)
-      ..cubicTo(
-        w * 0.55, midY - h * 0.05,
-        w * 0.70, midY - h * 0.02,
-        hiltEnd, midY,
-      );
-    canvas.drawPath(blade, paint);
-
-    // قبضه (خط عمودی کوچک)
-    canvas.drawLine(
-      Offset(guardX, midY - h * 0.16),
-      Offset(guardX, midY + h * 0.16),
-      paint,
-    );
-
-    // شاخه‌ی بالایی ذوالفقار
-    final upperFork = Path()
-      ..moveTo(junctionX, midY)
-      ..cubicTo(
-        junctionX - w * 0.14, midY - h * 0.26,
-        junctionX - w * 0.32, midY - h * 0.34,
-        w * 0.05, h * 0.14,
-      );
-    canvas.drawPath(upperFork, paint);
-
-    // شاخه‌ی پایینی ذوالفقار (قرینه)
-    final lowerFork = Path()
-      ..moveTo(junctionX, midY)
-      ..cubicTo(
-        junctionX - w * 0.14, midY + h * 0.26,
-        junctionX - w * 0.32, midY + h * 0.34,
-        w * 0.05, h * 0.86,
-      );
-    canvas.drawPath(lowerFork, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ZulfiqarPainter oldDelegate) => oldDelegate.color != color;
-}
