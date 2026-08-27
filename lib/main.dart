@@ -353,9 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              '\u262B',
-              style: TextStyle(fontSize: 18, color: accent, height: 1),
+            child: SizedBox(
+              width: 30,
+              height: 18,
+              child: CustomPaint(painter: _ZulfiqarPainter(color: accent)),
             ),
           ),
           Expanded(
@@ -467,4 +468,314 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return SafeArea(
+              top: false,
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: gold.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.menu_book_rounded, color: gold, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'درباره‌ی دعای عهد',
+                        style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+                  sectionTitle('معرفی دعای عهد'),
+                  paragraph(
+                    'دعای عهد یکی از دعاهای مشهور شیعه است که در آن از خداوند درخواست می‌شود انسان را از یاران و یاوران حضرت ولی‌عصر (عج) قرار دهد و بر عهد و پیمان با امام زمان (عج) استوار بماند.',
+                  ),
+                  sectionTitle('فضیلت دعای عهد'),
+                  paragraph(
+                    'دعای عهد از دعاهایی است که خواندن آن در منابع روایی شیعه مورد توجه قرار گرفته است. از امام صادق (ع) درباره‌ی خواندن این دعا در صبحگاه روایت شده، و در آن بر پیوند و وفاداری مؤمن نسبت به حضرت صاحب‌الزمان (عج) تأکید شده است.',
+                  ),
+                  sectionTitle('مفهوم کلی دعا'),
+                  paragraph(
+                    'مضمون دعای عهد شامل سلام و درود بر پیامبر اکرم (ص) و اهل‌بیت (ع)، اظهار وفاداری و عهد با امام زمان (عج)، درخواست یاری و قرار گرفتن در شمار یاران ایشان، و درخواست تعجیل در فرج است.',
+                  ),
+                  sectionTitle('یک حدیث کوتاه'),
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: gold.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: gold.withOpacity(0.3)),
+                    ),
+                    child: paragraph(
+                      'امام صادق (ع): هر کس چهل صبح این دعا را بخواند، از یاوران قائم (عج) خواهد بود؛ و اگر پیش از ظهور آن حضرت بمیرد، خداوند او را از قبر بیرون می‌آورد تا در خدمت ایشان باشد.',
+                      italic: true,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildOrnamentDivider(gold),
+                  const SizedBox(height: 6),
+                  Text(
+                    'اَللّهُمَّ اجْعَلْنی مِنْ اَنْصارِهِ وَاَعْوانِهِ وَالذّابّینَ عَنْهُ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'QuranFont',
+                      color: textColor,
+                      fontSize: 17,
+                      height: 1.8,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'التماس دعا 🙏',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subColor, fontSize: 13.5, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomBar(Color accent, Color cardColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 14)],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _iconButton(Icons.person, accent, _showReciterSheet, tooltip: 'انتخاب مداح'),
+            _iconButton(Icons.remove, accent, () => _zoom(-0.1), tooltip: 'کوچک‌نمایی'),
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
+                child: Icon(
+                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+            _iconButton(Icons.add, accent, () => _zoom(0.1), tooltip: 'بزرگ‌نمایی'),
+            _iconButton(Icons.settings, accent, _showSettingsSheet, tooltip: 'تنظیمات'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iconButton(IconData icon, Color accent, VoidCallback onTap, {required String tooltip}) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: accent.withOpacity(0.5)),
+          ),
+          child: Icon(icon, color: accent, size: 20),
+        ),
+      ),
+    );
+  }
+
+  void _showReciterSheet() {
+    _lightVibrate();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _nightMode ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        final textColor = _nightMode ? Colors.white : Colors.black87;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'انتخاب مداح',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                ),
+                const SizedBox(height: 8),
+                ...List.generate(kReciters.length, (i) {
+                  final selected = i == _reciterIndex;
+                  return ListTile(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _selectReciter(i);
+                    },
+                    title: Text(
+                      kReciters[i].name,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: selected ? const Color(0xFFC9A24B) : textColor,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: selected
+                        ? const Icon(Icons.check_circle, color: Color(0xFFC9A24B))
+                        : const Icon(Icons.radio_button_off, color: Colors.grey),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSettingsSheet() {
+    _lightVibrate();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _nightMode ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final textColor = _nightMode ? Colors.white : Colors.black87;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('تنظیمات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      title: Text('حالت شب', style: TextStyle(color: textColor)),
+                      value: _nightMode,
+                      activeColor: const Color(0xFFC9A24B),
+                      onChanged: (v) {
+                        _toggleNight();
+                        setSheetState(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text('لرزش', style: TextStyle(color: textColor)),
+                      value: _vibration,
+                      activeColor: const Color(0xFFC9A24B),
+                      onChanged: (v) {
+                        _toggleVibration();
+                        setSheetState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// -------------------- آیکون شمشیر ذوالفقار (به‌صورت افقی و صاف، بدون چرخش) --------------------
+class _ZulfiqarPainter extends CustomPainter {
+  final Color color;
+  const _ZulfiqarPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = h * 0.16
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final cx = w / 2;
+    final junctionY = h * 0.58;
+    final tipY = h * 0.06;
+
+    // تیغه‌ی پایینی و دسته (بخش عمودی وسط)
+    canvas.drawLine(
+      Offset(cx, h * 0.98),
+      Offset(cx, junctionY),
+      paint,
+    );
+
+    // قبضه (گارد افقی کوچک)
+    canvas.drawLine(
+      Offset(cx - w * 0.1, h * 0.82),
+      Offset(cx + w * 0.1, h * 0.82),
+      paint,
+    );
+
+    // شاخه‌ی چپ ذوالفقار (منحنی رو به بیرون با نوک قلاب‌مانند)
+    final leftBlade = Path()
+      ..moveTo(cx, junctionY)
+      ..cubicTo(
+        cx - w * 0.16, junctionY - h * 0.18,
+        cx - w * 0.48, junctionY - h * 0.12,
+        cx - w * 0.47, tipY + h * 0.18,
       )
+      ..cubicTo(
+        cx - w * 0.46, tipY + h * 0.05,
+        cx - w * 0.4, tipY,
+        cx - w * 0.34, tipY + h * 0.03,
+      );
+    canvas.drawPath(leftBlade, paint);
+
+    // شاخه‌ی راست ذوالفقار (قرینه‌ی شاخه‌ی چپ)
+    final rightBlade = Path()
+      ..moveTo(cx, junctionY)
+      ..cubicTo(
+        cx + w * 0.16, junctionY - h * 0.18,
+        cx + w * 0.48, junctionY - h * 0.12,
+        cx + w * 0.47, tipY + h * 0.18,
+      )
+      ..cubicTo(
+        cx + w * 0.46, tipY + h * 0.05,
+        cx + w * 0.4, tipY,
+        cx + w * 0.34, tipY + h * 0.03,
+      );
+    canvas.drawPath(rightBlade, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZulfiqarPainter oldDelegate) => oldDelegate.color != color;
+}
