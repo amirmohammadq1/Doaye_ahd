@@ -5,6 +5,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# نسخه‌ها این‌جا تنظیم می‌شوند (versionCode باید همیشه از نسخه‌ی قبلیِ منتشرشده بزرگ‌تر باشد)
+env:
+  ARM_VERSION_NAME: "2.0.0"      # armeabi-v7a + arm64-v8a
+  ARM_VERSION_CODE: "2000"
+  X64_VERSION_NAME: "2.0.1"      # x86_64
+  X64_VERSION_CODE: "2001"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,6 +34,12 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Prepare icon sources (logo.webp to PNG)
+        run: |
+          python3 -m venv /tmp/iconvenv
+          /tmp/iconvenv/bin/pip install --quiet pillow
+          /tmp/iconvenv/bin/python tools/prepare_icons.py
 
       - name: Generate native splash screen
         run: dart run flutter_native_splash:create
@@ -64,12 +77,56 @@ jobs:
             echo "No signing secrets found, building with debug key."
           fi
 
-      - name: Build release APK
-        run: flutter build apk --release
+      # ---- APK اول: ARM (armeabi-v7a + arm64-v8a) ----
+      - name: Build ARM APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64 \
+            --build-name="$ARM_VERSION_NAME" --build-number="$ARM_VERSION_CODE"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/DoayeAhd-v${ARM_VERSION_NAME}-ARM.apk"
 
-      - name: Upload APK
+      # ---- APK دوم: x86_64 ----
+      # توجه: فلاتر در حالت release از x86 ۳۲‌بیتی پشتیبانی نمی‌کند؛ فقط x86_64 ساخته می‌شود.
+      - name: Build x86_64 APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-x64 \
+            --build-name="$X64_VERSION_NAME" --build-number="$X64_VERSION_CODE"
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/DoayeAhd-v${X64_VERSION_NAME}-x86_64.apk"
+
+      - name: Verify both APKs
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          verify() {
+            f="$1"; name="$2"; code="$3"; want="$4"; forbid="$5"
+            echo "=== $f"
+            abis=$(unzip -l "$f" | grep -oE 'lib/[^/]+/' | sort -u | tr '\n' ' ')
+            echo "ABIs: $abis"
+            for a in $want; do
+              echo "$abis" | grep -q "lib/$a/" || { echo "::error::$f is missing ABI $a"; exit 1; }
+            done
+            for a in $forbid; do
+              if echo "$abis" | grep -q "lib/$a/"; then echo "::error::$f contains unexpected ABI $a"; exit 1; fi
+            done
+            "$BT/aapt" dump badging "$f" | grep -E "^package:" | tee /tmp/badging.txt
+            grep -q "name='ir.doayeahd.app'" /tmp/badging.txt || { echo "::error::wrong package name in $f"; exit 1; }
+            grep -q "versionName='$name'" /tmp/badging.txt || { echo "::error::wrong versionName in $f (expected $name)"; exit 1; }
+            grep -q "versionCode='$code'" /tmp/badging.txt || { echo "::error::wrong versionCode in $f (expected $code)"; exit 1; }
+            "$BT/apksigner" verify --verbose --print-certs "$f" | tee /tmp/cert.txt | grep -E "Verifies|SHA-256 digest" || true
+            grep -q "Verifies" /tmp/cert.txt || { echo "::error::signature check failed for $f"; exit 1; }
+            if grep -qi "Android Debug" /tmp/cert.txt; then
+              echo "::warning::$f is signed with the DEBUG key (signing secrets are missing) - not suitable for Myket"
+            fi
+            echo "- $(basename "$f"): $(du -h "$f" | cut -f1), ABIs: $abis" >> "$GITHUB_STEP_SUMMARY"
+          }
+          echo "### Doaye Ahd builds" >> "$GITHUB_STEP_SUMMARY"
+          verify "dist/DoayeAhd-v${ARM_VERSION_NAME}-ARM.apk" "$ARM_VERSION_NAME" "$ARM_VERSION_CODE" "armeabi-v7a arm64-v8a" "x86 x86_64"
+          verify "dist/DoayeAhd-v${X64_VERSION_NAME}-x86_64.apk" "$X64_VERSION_NAME" "$X64_VERSION_CODE" "x86_64" "armeabi-v7a arm64-v8a x86"
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: doaye-ahd-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          
+          name: doaye-ahd-apks
+          path: dist/*.apk
