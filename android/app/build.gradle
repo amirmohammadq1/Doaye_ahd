@@ -10,10 +10,6 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-// فیلتر معماری پردازنده: در CI با apkAbis در android/gradle.properties تنظیم می‌شود
-// (مثلاً "armeabi-v7a,arm64-v8a" یا "x86_64"). اگر تنظیم نباشد، فیلتری اعمال نمی‌شود.
-def apkAbis = project.findProperty("apkAbis")
-
 android {
     namespace = "ir.doayeahd.app"
     compileSdk = flutter.compileSdkVersion
@@ -22,6 +18,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -34,12 +31,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        if (apkAbis) {
-            ndk {
-                apkAbis.split(",").each { abiFilters.add(it.trim()) }
-            }
-        }
+        multiDexEnabled true
     }
 
     signingConfigs {
@@ -53,11 +45,19 @@ android {
         }
     }
 
+    // کتابخانه‌های native داخل APK فشرده بمانند تا حجم فایل APK کمتر شود
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -66,4 +66,6 @@ flutter {
     source = "../.."
 }
 
-dependencies {}
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}
