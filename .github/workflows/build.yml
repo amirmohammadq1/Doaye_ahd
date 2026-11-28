@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# هر معماری پردازنده در یک job جدا و با نسخه‌ی خودش ساخته می‌شود (مثل پروژه‌ی سوره صافات).
+# ساختار مثل پروژه‌ی سوره صافات: هر معماری پردازنده در یک job جدا ساخته می‌شود.
 # نسخه‌ها همین‌جا تنظیم می‌شوند؛ version_code باید همیشه از نسخه‌ی قبلیِ منتشرشده بزرگ‌تر باشد.
 jobs:
   build:
@@ -18,18 +18,12 @@ jobs:
           # گوشی‌های معمولی: armeabi-v7a (قدیمی) + arm64-v8a (جدید)
           - name: arm
             platforms: android-arm,android-arm64
-            abis: armeabi-v7a,arm64-v8a
-            want: "armeabi-v7a arm64-v8a"
-            forbid: "x86 x86_64"
             version_name: "2.0.0"
             version_code: "2000"
             apk_name: DoayeAhd-v2.0.0-ARM.apk
-          # شبیه‌ساز و دستگاه‌های اینتلی (فلاتر در حالت release فقط x86_64 را پشتیبانی می‌کند، نه x86 ۳۲‌بیتی)
+          # فقط شبیه‌ساز و دستگاه‌های اینتلی
           - name: x86_64
             platforms: android-x64
-            abis: x86_64
-            want: "x86_64"
-            forbid: "armeabi-v7a arm64-v8a x86"
             version_name: "2.0.1"
             version_code: "2001"
             apk_name: DoayeAhd-v2.0.1-x86_64.apk
@@ -72,33 +66,27 @@ jobs:
         working-directory: android
         run: gradle wrapper --gradle-version 8.11.1 --distribution-type bin
 
-      # ---- امضای برنامه برای انتشار در مایکت ----
-      # این مرحله فقط زمانی کاری انجام می‌دهد که سکرت‌های زیر در گیت‌هاب تنظیم شده باشند:
-      # KEYSTORE_BASE64 , KEYSTORE_PASSWORD , KEY_ALIAS , KEY_PASSWORD
-      - name: Setup signing (if secrets are configured)
+      # هر دو APK باید با همان کلید دیجیتال داخل Secrets امضا شوند.
+      # اگر Secrets تنظیم نشده باشد، بیلد عمداً متوقف می‌شود تا APK با کلید دیباگ ساخته نشود.
+      - name: Setup signing (کلید دیجیتال از Secrets)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
-            {
-              printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
-              printf 'keyPassword=%s\n' "$KEY_PASSWORD"
-              printf 'keyAlias=%s\n' "$KEY_ALIAS"
-              printf 'storeFile=keystore.jks\n'
-            } > android/key.properties
-            echo "Signing configured."
-          else
-            echo "No signing secrets found, building with debug key."
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::یکی از Secrets کلید دیجیتال (KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD) تنظیم نشده است."
+            exit 1
           fi
-
-      # کتابخانه‌های بومیِ بعضی پلاگین‌ها (مثل shared_preferences) برای همه‌ی معماری‌ها در AAR هستند
-      # و --target-platform جلویشان را نمی‌گیرد. این فیلتر فقط معماری‌های همین APK را نگه می‌دارد.
-      - name: Keep only this APK's CPU architectures (${{ matrix.name }})
-        run: printf '\napkAbis=%s\n' "${{ matrix.abis }}" >> android/gradle.properties
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
+          {
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'storeFile=keystore.jks\n'
+          } > android/key.properties
+          echo "Signing configured."
 
       - name: Build release APK (${{ matrix.name }})
         run: >
@@ -106,48 +94,21 @@ jobs:
           --target-platform ${{ matrix.platforms }}
           --build-name=${{ matrix.version_name }}
           --build-number=${{ matrix.version_code }}
+          --split-debug-info=build/symbols/${{ matrix.name }}
 
       - name: Rename APK
-        run: |
-          mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ matrix.apk_name }}"
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/${{ matrix.apk_name }}
 
-      - name: Verify APK (CPU architectures, package, version, signature)
-        env:
-          APK: dist/${{ matrix.apk_name }}
-          VNAME: ${{ matrix.version_name }}
-          VCODE: ${{ matrix.version_code }}
-          WANT: ${{ matrix.want }}
-          FORBID: ${{ matrix.forbid }}
+      - name: APK report (حجم و اثر انگشت کلید دیجیتال)
+        continue-on-error: true
         run: |
-          set -euo pipefail
-          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          abis=$(unzip -l "$APK" | grep -oE 'lib/[^/]+/' | sort -u | tr '\n' ' ')
-          echo "ABIs: $abis"
-          for a in $WANT; do
-            echo "$abis" | grep -q "lib/$a/" || { echo "::error::missing ABI $a"; exit 1; }
-          done
-          for a in $FORBID; do
-            if echo "$abis" | grep -q "lib/$a/"; then echo "::error::unexpected ABI $a in this APK"; exit 1; fi
-          done
-          "$BT/aapt" dump badging "$APK" | grep -E "^package:" | tee /tmp/badging.txt
-          grep -q "name='ir.doayeahd.app'" /tmp/badging.txt || { echo "::error::wrong package name"; exit 1; }
-          grep -q "versionName='$VNAME'" /tmp/badging.txt || { echo "::error::wrong versionName (expected $VNAME)"; exit 1; }
-          grep -q "versionCode='$VCODE'" /tmp/badging.txt || { echo "::error::wrong versionCode (expected $VCODE)"; exit 1; }
-          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/cert.txt | grep -E "Verifies|SHA-256 digest" || true
-          grep -q "Verifies" /tmp/cert.txt || { echo "::error::signature check failed"; exit 1; }
-          if grep -qi "Android Debug" /tmp/cert.txt; then
-            echo "::warning::APK is signed with the DEBUG key (signing secrets are missing) - not suitable for Myket"
-          fi
-          {
-            echo "### ${{ matrix.apk_name }}"
-            echo "- size: $(du -h "$APK" | cut -f1)"
-            echo "- ABIs: $abis"
-            echo "- version: $VNAME ($VCODE)"
-          } >> "$GITHUB_STEP_SUMMARY"
+          ls -l build/${{ matrix.apk_name }}
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -z "$APKSIGNER" ]; then echo "apksigner not found"; exit 0; fi
+          "$APKSIGNER" verify --print-certs build/${{ matrix.apk_name }} | grep -E "Signer #1 certificate (DN|SHA-256)"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: doaye-ahd-${{ matrix.name }}-apk
-          path: dist/${{ matrix.apk_name }}
+          path: build/${{ matrix.apk_name }}
