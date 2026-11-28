@@ -5,16 +5,34 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# نسخه‌ها این‌جا تنظیم می‌شوند (versionCode باید همیشه از نسخه‌ی قبلیِ منتشرشده بزرگ‌تر باشد)
-env:
-  ARM_VERSION_NAME: "2.0.0"      # armeabi-v7a + arm64-v8a
-  ARM_VERSION_CODE: "2000"
-  X64_VERSION_NAME: "2.0.1"      # x86_64
-  X64_VERSION_CODE: "2001"
-
+# هر معماری پردازنده در یک job جدا و با نسخه‌ی خودش ساخته می‌شود (مثل پروژه‌ی سوره صافات).
+# نسخه‌ها همین‌جا تنظیم می‌شوند؛ version_code باید همیشه از نسخه‌ی قبلیِ منتشرشده بزرگ‌تر باشد.
 jobs:
   build:
+    name: Build APK (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # گوشی‌های معمولی: armeabi-v7a (قدیمی) + arm64-v8a (جدید)
+          - name: arm
+            platforms: android-arm,android-arm64
+            abis: armeabi-v7a,arm64-v8a
+            want: "armeabi-v7a arm64-v8a"
+            forbid: "x86 x86_64"
+            version_name: "2.0.0"
+            version_code: "2000"
+            apk_name: DoayeAhd-v2.0.0-ARM.apk
+          # شبیه‌ساز و دستگاه‌های اینتلی (فلاتر در حالت release فقط x86_64 را پشتیبانی می‌کند، نه x86 ۳۲‌بیتی)
+          - name: x86_64
+            platforms: android-x64
+            abis: x86_64
+            want: "x86_64"
+            forbid: "armeabi-v7a arm64-v8a x86"
+            version_name: "2.0.1"
+            version_code: "2001"
+            apk_name: DoayeAhd-v2.0.1-x86_64.apk
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,56 +95,59 @@ jobs:
             echo "No signing secrets found, building with debug key."
           fi
 
-      # ---- APK اول: ARM (armeabi-v7a + arm64-v8a) ----
-      - name: Build ARM APK
+      # کتابخانه‌های بومیِ بعضی پلاگین‌ها (مثل shared_preferences) برای همه‌ی معماری‌ها در AAR هستند
+      # و --target-platform جلویشان را نمی‌گیرد. این فیلتر فقط معماری‌های همین APK را نگه می‌دارد.
+      - name: Keep only this APK's CPU architectures (${{ matrix.name }})
+        run: printf '\napkAbis=%s\n' "${{ matrix.abis }}" >> android/gradle.properties
+
+      - name: Build release APK (${{ matrix.name }})
+        run: >
+          flutter build apk --release
+          --target-platform ${{ matrix.platforms }}
+          --build-name=${{ matrix.version_name }}
+          --build-number=${{ matrix.version_code }}
+
+      - name: Rename APK
         run: |
-          flutter build apk --release \
-            --target-platform android-arm,android-arm64 \
-            --build-name="$ARM_VERSION_NAME" --build-number="$ARM_VERSION_CODE"
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/DoayeAhd-v${ARM_VERSION_NAME}-ARM.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/${{ matrix.apk_name }}"
 
-      # ---- APK دوم: x86_64 ----
-      # توجه: فلاتر در حالت release از x86 ۳۲‌بیتی پشتیبانی نمی‌کند؛ فقط x86_64 ساخته می‌شود.
-      - name: Build x86_64 APK
-        run: |
-          flutter build apk --release \
-            --target-platform android-x64 \
-            --build-name="$X64_VERSION_NAME" --build-number="$X64_VERSION_CODE"
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/DoayeAhd-v${X64_VERSION_NAME}-x86_64.apk"
-
-      - name: Verify both APKs
+      - name: Verify APK (CPU architectures, package, version, signature)
+        env:
+          APK: dist/${{ matrix.apk_name }}
+          VNAME: ${{ matrix.version_name }}
+          VCODE: ${{ matrix.version_code }}
+          WANT: ${{ matrix.want }}
+          FORBID: ${{ matrix.forbid }}
         run: |
           set -euo pipefail
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          verify() {
-            f="$1"; name="$2"; code="$3"; want="$4"; forbid="$5"
-            echo "=== $f"
-            abis=$(unzip -l "$f" | grep -oE 'lib/[^/]+/' | sort -u | tr '\n' ' ')
-            echo "ABIs: $abis"
-            for a in $want; do
-              echo "$abis" | grep -q "lib/$a/" || { echo "::error::$f is missing ABI $a"; exit 1; }
-            done
-            for a in $forbid; do
-              if echo "$abis" | grep -q "lib/$a/"; then echo "::error::$f contains unexpected ABI $a"; exit 1; fi
-            done
-            "$BT/aapt" dump badging "$f" | grep -E "^package:" | tee /tmp/badging.txt
-            grep -q "name='ir.doayeahd.app'" /tmp/badging.txt || { echo "::error::wrong package name in $f"; exit 1; }
-            grep -q "versionName='$name'" /tmp/badging.txt || { echo "::error::wrong versionName in $f (expected $name)"; exit 1; }
-            grep -q "versionCode='$code'" /tmp/badging.txt || { echo "::error::wrong versionCode in $f (expected $code)"; exit 1; }
-            "$BT/apksigner" verify --verbose --print-certs "$f" | tee /tmp/cert.txt | grep -E "Verifies|SHA-256 digest" || true
-            grep -q "Verifies" /tmp/cert.txt || { echo "::error::signature check failed for $f"; exit 1; }
-            if grep -qi "Android Debug" /tmp/cert.txt; then
-              echo "::warning::$f is signed with the DEBUG key (signing secrets are missing) - not suitable for Myket"
-            fi
-            echo "- $(basename "$f"): $(du -h "$f" | cut -f1), ABIs: $abis" >> "$GITHUB_STEP_SUMMARY"
-          }
-          echo "### Doaye Ahd builds" >> "$GITHUB_STEP_SUMMARY"
-          verify "dist/DoayeAhd-v${ARM_VERSION_NAME}-ARM.apk" "$ARM_VERSION_NAME" "$ARM_VERSION_CODE" "armeabi-v7a arm64-v8a" "x86 x86_64"
-          verify "dist/DoayeAhd-v${X64_VERSION_NAME}-x86_64.apk" "$X64_VERSION_NAME" "$X64_VERSION_CODE" "x86_64" "armeabi-v7a arm64-v8a x86"
+          abis=$(unzip -l "$APK" | grep -oE 'lib/[^/]+/' | sort -u | tr '\n' ' ')
+          echo "ABIs: $abis"
+          for a in $WANT; do
+            echo "$abis" | grep -q "lib/$a/" || { echo "::error::missing ABI $a"; exit 1; }
+          done
+          for a in $FORBID; do
+            if echo "$abis" | grep -q "lib/$a/"; then echo "::error::unexpected ABI $a in this APK"; exit 1; fi
+          done
+          "$BT/aapt" dump badging "$APK" | grep -E "^package:" | tee /tmp/badging.txt
+          grep -q "name='ir.doayeahd.app'" /tmp/badging.txt || { echo "::error::wrong package name"; exit 1; }
+          grep -q "versionName='$VNAME'" /tmp/badging.txt || { echo "::error::wrong versionName (expected $VNAME)"; exit 1; }
+          grep -q "versionCode='$VCODE'" /tmp/badging.txt || { echo "::error::wrong versionCode (expected $VCODE)"; exit 1; }
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/cert.txt | grep -E "Verifies|SHA-256 digest" || true
+          grep -q "Verifies" /tmp/cert.txt || { echo "::error::signature check failed"; exit 1; }
+          if grep -qi "Android Debug" /tmp/cert.txt; then
+            echo "::warning::APK is signed with the DEBUG key (signing secrets are missing) - not suitable for Myket"
+          fi
+          {
+            echo "### ${{ matrix.apk_name }}"
+            echo "- size: $(du -h "$APK" | cut -f1)"
+            echo "- ABIs: $abis"
+            echo "- version: $VNAME ($VCODE)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload APKs
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: doaye-ahd-apks
-          path: dist/*.apk
+          name: doaye-ahd-${{ matrix.name }}-apk
+          path: dist/${{ matrix.apk_name }}
